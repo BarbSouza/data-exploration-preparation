@@ -147,5 +147,131 @@ nrow(filter(df, Father.s.qualification == 34)) #112 unknown
 nrow(filter(df, Application.order == 0)) #Just one, doesn't matter
 
 
-    
+######### Cleaning ########
 
+#Rename columns to short names and fixing typo
+#s1 = 1st semester, s2 = 2nd semester
+names(df) <- c("marital_status", "app_mode", "app_order", "course",
+               "attendance", "prev_qual", "prev_qual_grade", "nationality",
+               "mother_qual", "father_qual", "mother_occ", "father_occ",
+               "admission_grade", "displaced", "special_needs", "debtor",
+               "fees_up_to_date", "gender", "scholarship", "age",
+               "international",
+               "s1_credited", "s1_enrolled", "s1_evaluations",
+               "s1_approved", "s1_grade", "s1_without_eval",
+               "s2_credited", "s2_enrolled", "s2_evaluations",
+               "s2_approved", "s2_grade", "s2_without_eval",
+               "unemployment", "inflation", "gdp", "target")
+names(df)
+
+#Hidden missing values -> NA
+#Grade 0 = nothing to average / code 34 = unknow
+df <- df%>%
+  mutate(s1_grade = ifelse(s1_grade == 0, NA, s1_grade),
+        s2_grade = ifelse(s2_grade == 0, NA, s2_grade),
+        mother_qual = ifelse(mother_qual == 34, NA, mother_qual),
+        father_qual = ifelse(father_qual == 34, NA, father_qual))
+    
+#Count and plot the missing values now visible
+colSums(is.na(df))
+na_percent <- round(colSums(is.na(df)) / nrow(df) * 100, 2)
+na_df <- data.frame(Feature = names(na_percent), Percent = na_percent)
+na_df <- subset(na_df, Percent > 0)
+ggplot(na_df, aes(x = reorder(Feature, Percent), y = Percent)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Hidden Missing Values Revealed (% of students)",
+       x = "Column", y = "% missing") +
+  theme_minimal()
+
+#Flag variables before imputing
+df$no_grade_1st <- ifelse(is.na(df$s1_grade), 1, 0)
+df$no_grade_2nd <- ifelse(is.na(df$s2_grade), 1, 0)
+table(df$no_grade_1st, df$target)
+
+#Selecting only columns I will use
+#Dropped: nationality, international (97% Portuguese), special_needs (1%), 
+#app_mode, app_order, prev_qual (not gonna use it)
+#mother_occ, father_occ (small groups, use qualification)
+df <- df[c("target", "gender", "age", "marital_status", "course",
+           "attendance", "displaced", "debtor", "fees_up_to_date",
+           "scholarship", "mother_qual", "father_qual",
+           "prev_qual_grade", "admission_grade",
+           "s1_credited", "s1_enrolled", "s1_evaluations",
+           "s1_approved", "s1_grade", "s1_without_eval",
+           "s2_credited", "s2_enrolled", "s2_evaluations",
+           "s2_approved", "s2_grade", "s2_without_eval",
+           "no_grade_1st", "no_grade_2nd",
+           "unemployment", "inflation", "gdp")]
+dim(df)
+ 
+#Code -> Labels (UCI table)
+df$gender <- factor(df$gender, levels = c(0, 1), labels = c("Female", "Male"))
+df$attendance <- factor(df$attendance, levels = c(0, 1), labels = c("Evening", "Daytime"))
+df$displaced <- factor(df$displaced, levels = c(0, 1), labels = c("No", "Yes"))
+df$debtor <- factor(df$debtor, levels = c(0, 1), labels = c("No", "Yes"))
+df$fees_up_to_date <- factor(df$fees_up_to_date, levels = c(0, 1), labels = c("No", "Yes"))
+df$scholarship <- factor(df$scholarship, levels = c(0, 1), labels = c("No", "Yes"))
+#Marital status: small groups merged
+df$marital_status <- factor(df$marital_status,
+                            levels = c(1, 2, 3, 4, 5, 6),
+                            labels = c("Single", "Married/Union", "Separated/Widowed",
+                                       "Separated/Widowed", "Married/Union",
+                                       "Separated/Widowed"))
+#Course: 17 codes -> names
+df$course <- factor(df$course,
+                    levels = c(33, 171, 8014, 9003, 9070, 9085, 9119, 9130, 9147,
+                               9238, 9254, 9500, 9556, 9670, 9773, 9853, 9991),
+                    labels = c("Biofuel Production Tech", "Animation & Multimedia",
+                               "Social Service (evening)", "Agronomy",
+                               "Communication Design", "Veterinary Nursing",
+                               "Informatics Engineering", "Equinculture",
+                               "Management", "Social Service", "Tourism",
+                               "Nursing", "Oral Hygiene", "Advertising & Marketing",
+                               "Journalism & Communication", "Basic Education",
+                               "Management (evening)"))
+
+#Parents qualification: 33 codes -> 3 levels (Basic < Saecondary < Higher)
+qual_codes  <- c(11, 19, 26, 29, 30, 35, 36, 37, 38,
+                 1, 9, 10, 12, 13, 14, 18, 20, 22, 25, 27, 31, 33,
+                 2, 3, 4, 5, 6, 39, 40, 41, 42, 43, 44)
+qual_labels <- c(rep("Basic", 9), rep("Secondary", 13), rep("Higher", 11))
+df$mother_edu <- factor(df$mother_qual, levels = qual_codes, labels = qual_labels)
+df$father_edu <- factor(df$father_qual, levels = qual_codes, labels = qual_labels)
+df$mother_qual <- NULL
+df$father_qual <- NULL
+
+table(df$course)
+table(df$mother_edu)
+
+#Impute grades with the median
+#Median, not mean to not pull by extreme values
+df <- df %>%
+  mutate(s1_grade = ifelse(is.na(s1_grade), median(s1_grade, na.rm = TRUE), s1_grade)) %>%
+  mutate(s2_grade = ifelse(is.na(s2_grade), median(s2_grade, na.rm = TRUE), s2_grade))
+
+#Impute parents education with the mode
+get_mode <- function(x) {
+  values <- na.omit(x)
+  unique_values <- unique(values)
+  unique_values[which.max(tabulate(match(values, unique_values)))]
+}
+df$mother_edu[is.na(df$mother_edu)] <- get_mode(df$mother_edu)
+df$father_edu[is.na(df$father_edu)] <- get_mode(df$father_edu)
+
+#Check values
+colSums(is.na(df))
+dim(df)
+str(df)
+
+#Before and after imputation
+p1 <- ggplot(df_raw, aes(x = Curricular.units.1st.sem..grade.)) +
+  geom_histogram(binwidth = 0.5, fill = "blue", color = "black") +
+  labs(title = "1st-sem grade - original (0 = no grade)", x = "Grade (0-20)")
+p2 <- ggplot(df, aes(x = s1_grade)) +
+  geom_histogram(binwidth = 0.5, fill = "green", color = "black") +
+  labs(title = "1st-sem grade - after median imputation", x = "Grade (0-20)")
+grid.arrange(p1, p2, ncol = 2)
+
+#Save
+write.csv(df, "data_clean.csv", row.names = FALSE)
