@@ -352,10 +352,12 @@ write.csv(df, "data_outliers.csv", row.names = FALSE)
 #Outcomes are unbalanced (32/12/50%) so comparing using rates
 ##Questions##
 #1. Does dropout rate differ between male and female?
-#2. Is parents educational level related to dropout?
+#2. Which courses lose the most students, is there a gender difference?
 #3. Are tuition fee status and scholarships related to dropout?
 #4. Does age of enrollment related to dropout?
 #5. How do 1st and 2nd semester grades relate, and do dropouts cluster at low grades?
+
+# Is parents educational level related to dropout? (Showed little relation to dropout)
 
 # Does the Enrolled students are more similar to the Graduate or to the Dropouts?
 
@@ -373,17 +375,25 @@ ggplot(df, aes(x = age)) +
 df %>% count(cut_width(age, 5))
 
 #Gender vs Outcome#
-ggplot(df, aes(x = gender, fill = target)) +
-  geom_bar(position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Q1. Outcome by Gender", x = "Gender", y = "Number of students") +
-  theme_minimal()
-df %>%
+gender_rates <- df %>%
   group_by(gender) %>%
-  summarise(dropout = round(mean(target == "Dropout") * 100, 1),
-            enrolled = round(mean(target == "Enrolled") * 100, 1),
-            graduate = round(mean(target == "Graduate") * 100, 1),
-            n = n())
+  summarise(Dropout  = round(mean(target == "Dropout") * 100, 1),
+            Enrolled = round(mean(target == "Enrolled") * 100, 1),
+            Graduate = round(mean(target == "Graduate") * 100, 1))
+gender_rates
+
+gender_long <- melt(as.data.frame(gender_rates),
+                    id.vars       = "gender",
+                    variable.name = "outcome",
+                    value.name    = "percent")
+
+gender_long$outcome <- factor(gender_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
+
+ggplot(gender_long, aes(x = gender, y = percent, fill = outcome)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Q1. Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
+  theme_minimal()
 
 #Parents education vs outcome#
 parents <- melt(df[c("target", "mother_edu", "father_edu")],
@@ -397,6 +407,8 @@ head(parents)
 parents$edu_level <- factor(parents$edu_level, levels = c("Basic", "Secondary", "Higher"))
 parents$parent <- factor(parents$parent, levels = c("mother_edu", "father_edu"), labels = c("Mother", "Father"))
 
+#
+
 #Dropout rate per parent and level
 parent_rates <- parents %>%
   group_by(parent, edu_level) %>%
@@ -409,4 +421,7 @@ ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
   labs(title = "Q2. Dropout Rate by Parents' Education",
        x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
   theme_minimal()
+
+#Dropout rate per course and gender#
+
 
