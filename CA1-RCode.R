@@ -386,46 +386,6 @@ df %>%
             n = n())
 
 #Parents education vs outcome#
-#mother
-ggplot(df, aes(x = mother_edu, fill = target)) +
-  geom_bar(position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Q2a. Outcome by Mother's Education", x = "Mother's education", y = "Number of students") +
-  theme_minimal()
-df %>%
-  group_by(mother_edu) %>%
-  summarise(dropout = round(mean(target == "Dropout") * 100, 1),
-            graduate = round(mean(target == "Graduate") * 100, 1),
-            n = n())
-#father
-ggplot(df, aes(x = father_edu, fill = target)) +
-  geom_bar(position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Q2b. Outcome by Father's Education", x = "Father's education", y = "Number of students") +
-  theme_minimal()
-df %>%
-  group_by(father_edu) %>%
-  summarise(dropout = round(mean(target == "Dropout") * 100, 1),
-            graduate = round(mean(target == "Graduate") * 100, 1),
-            n = n())
-#mother and father side by side
-p1 <- ggplot(df, aes(x = mother_edu, fill = target)) +
-  geom_bar(position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Mother's Education", x = "Education level", y = "Number of students") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-p2 <- ggplot(df, aes(x = father_edu, fill = target)) +
-  geom_bar(position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Father's Education", x = "Education level", y = "Number of students") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-grid.arrange(p1, p2, ncol = 2)
-
-#mother and father in one graph (using melt())
 parents <- melt(df[c("target", "mother_edu", "father_edu")],
                 id.vars       = "target",
                 measure.vars  = c("mother_edu", "father_edu"),
@@ -433,8 +393,11 @@ parents <- melt(df[c("target", "mother_edu", "father_edu")],
                 value.name    = "edu_level")
 head(parents)
 
+#labels
 parents$edu_level <- factor(parents$edu_level, levels = c("Basic", "Secondary", "Higher"))
 parents$parent <- factor(parents$parent, levels = c("mother_edu", "father_edu"), labels = c("Mother", "Father"))
+
+#Dropout rate per parent and level
 parent_rates <- parents %>%
   group_by(parent, edu_level) %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
@@ -446,3 +409,4 @@ ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
   labs(title = "Q2. Dropout Rate by Parents' Education",
        x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
   theme_minimal()
+
