@@ -275,3 +275,75 @@ grid.arrange(p1, p2, ncol = 2)
 
 #Save
 write.csv(df, "data_clean.csv", row.names = FALSE)
+
+####### Outliers #####
+num_cols <- c("age", "prev_qual_grade", "admission_grade",
+              "s1_credited", "s1_enrolled", "s1_evaluations",
+              "s1_approved", "s1_grade", "s1_without_eval",
+              "s2_credited", "s2_enrolled", "s2_evaluations",
+              "s2_approved", "s2_grade", "s2_without_eval")
+
+#Boxplots - scale() to put all columns on the same axis
+boxplot(scale(df[num_cols]), main = "Outliers in Numeric Columns", col = "lightblue")
+boxplot(df$age, main = "Age at Enrolment")
+
+#Count outliers per column
+#IQR: below Q1 -1.5*IQR or above Q3 + 1.5*IQR
+count_iqr_outliers <- function(x) {
+  Q1 <- quantile(x, 0.25)
+  Q3 <- quantile(x, 0.75)
+  IQR_value <- Q3 - Q1
+  sum(x < Q1 - 1.5 * IQR_value | x > Q3 + 1.5 * IQR_value)
+}
+
+#Z-score: z below -3 or above 3
+count_z_outliers <- function(x){
+  z <- scale(x)
+  sum(z < -3 | z > 3)
+}
+
+#apply(data, 2, function)
+outlier_summary <- data.frame(
+  IQR_outliers = apply(df[num_cols], 2, count_iqr_outliers),
+  Z_outliers = apply(df[num_cols], 2, count_z_outliers))
+outlier_summary$IQR_percent <- round(outlier_summary$IQR_outliers / nrow(df) * 100, 2)
+outlier_summary
+
+#Check for impossible values
+nrow(filter(df, s1_approved > s1_enrolled))
+nrow(filter(df, s2_approved > s2_enrolled))
+oldest <- filter(df, age > 50)
+nrow(oldest)
+table(oldest$target)
+
+#remove outliers to check data
+Q1 <- quantile(df$age, 0.25)
+Q3 <- quantile(df$age, 0.75)
+IQR_value <- Q3 - Q1
+lower <- Q1 - 1.5 * IQR_value
+upper <- Q3 + 1.5 * IQR_value
+upper
+removed <- df[df$age < lower | df$age > upper, ]
+nrow(df) - nrow(removed)
+prop.table(table(removed$target))
+prop.table(table(df$target))
+
+#The 441 age outliers represent real students that drop out more often (54% vs 32%)
+#Removing them would delete the group that we want to understand
+
+#Keep the outliers, but reduce skew with log
+df$age_log <- log10(df$age)
+
+p1 <- ggplot(df, aes(x = age)) +
+  geom_histogram(binwidth = 2, fill = "orange", color = "black") +
+  labs(title = "Age - original", x = "Age (years)")
+p2 <- ggplot(df, aes(x = age_log)) +
+  geom_histogram(bins = 30, fill = "purple", color = "black") +
+  labs(title = "Age - log10", x = "log10(age)")
+grid.arrange(p1, p2, ncol = 2)
+
+dim(df)
+#Nothing was removed
+write.csv(df, "data_outliers.csv", row.names = FALSE)
+
+
