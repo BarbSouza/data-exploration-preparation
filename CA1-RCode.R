@@ -374,6 +374,7 @@ ggplot(df, aes(x = age)) +
   theme_minimal()
 df %>% count(cut_width(age, 5))
 
+##QUESTION 1##
 #Gender vs Outcome#
 gender_rates <- df %>%
   group_by(gender) %>%
@@ -422,6 +423,7 @@ ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
        x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
   theme_minimal()
 
+##QUESTION 2##
 #Dropout rate per course and gender#
 #Dropout rate, % of men and size of each course
 course_rates <- df %>%
@@ -455,3 +457,53 @@ ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gend
   labs(title = "Dropout Rate by Course and Gender",
        x = "Course", y = "Dropout rate (%)", fill = "Gender") +
   theme_minimal()
+
+##QUESTION 3##
+#tuition fees and scholarship vs outcome
+#tuition fees
+fees_rates <- df %>%
+  group_by(fees_up_to_date) %>%
+  summarise(Dropout = round(mean(target == "Dropout") * 100, 1),
+            Enrolled = round(mean(target == "Enrolled") * 100, 1),
+            Graduate = round(mean(target == "Graduate") * 100, 1),
+            n = n())
+fees_rates
+
+fees_long <- melt(as.data.frame(fees_rates[c("fees_up_to_date", "Dropout", "Enrolled", "Graduate")]),
+                  id.vars = "fees_up_to_date",
+                  variable.name = "outcome",
+                  value.name = "percent")
+
+p_fees <- ggplot(fees_long, aes(x = fees_up_to_date, y = percent, fill = outcome)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Outcome by Tuition Fees Up to Date (%)",
+       x = "Fees up to date", y = "% of students", fill = "Outcome") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+#Scholarship
+scholarship_rates <- df %>%
+  group_by(scholarship) %>%
+  summarise(Dropout = round(mean(target == "Dropout") * 100, 1),
+            Enrolled = round(mean(target == "Enrolled") * 100, 1),
+            Graduate = round(mean(target == "Graduate") * 100, 1),
+            n = n())
+scholarship_rates
+
+scholarship_long <- melt(as.data.frame(scholarship_rates[c("scholarship", "Dropout", "Enrolled", "Graduate")]),
+                         id.vars = "scholarship",
+                         variable.name = "outcome",
+                         value.name = "percent")
+
+p_scholarship <- ggplot(scholarship_long, aes(x = scholarship, y = percent, fill = outcome)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Outcome by Scholarship (%)",
+       x = "Scholarship holder", y = "% of students", fill = "Outcome") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+grid.arrange(p_fees, p_scholarship, ncol = 2)
+
+
+
