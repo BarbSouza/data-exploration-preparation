@@ -425,3 +425,24 @@ p2 <- ggplot(df, aes(x = father_edu, fill = target)) +
 
 grid.arrange(p1, p2, ncol = 2)
 
+#mother and father in one graph (using melt())
+parents <- melt(df[c("target", "mother_edu", "father_edu")],
+                id.vars       = "target",
+                measure.vars  = c("mother_edu", "father_edu"),
+                variable.name = "parent",
+                value.name    = "edu_level")
+head(parents)
+
+parents$edu_level <- factor(parents$edu_level, levels = c("Basic", "Secondary", "Higher"))
+parents$parent <- factor(parents$parent, levels = c("mother_edu", "father_edu"), labels = c("Mother", "Father"))
+parent_rates <- parents %>%
+  group_by(parent, edu_level) %>%
+  summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
+parent_rates
+
+ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Q2. Dropout Rate by Parents' Education",
+       x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
+  theme_minimal()
