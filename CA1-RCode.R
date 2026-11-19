@@ -347,3 +347,30 @@ dim(df)
 write.csv(df, "data_outliers.csv", row.names = FALSE)
 
 
+######### Exploratory Data Analysis: The Student Journey ########
+#Finding out the Dropout, Enrolled and Graduate % in different circumstances
+#Outcomes are unbalanced (32/12/50%) so comparing using rates
+##Questions##
+#1. Does dropout rate differ between male and female?
+#2. Is parents educational level related to dropout?
+#3. Are tuition fee status and scholarships related to dropout?
+#4. Does age of enrollment related to dropout?
+#5. How do 1st and 2nd semester grades relate, and do dropouts cluster at low grades?
+
+# Does the Enrolled students are more similar to the Graduate or to the Dropouts?
+
+#Outcome#
+ggplot(df, aes(x = target)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  labs(title = "Academic Outcome of Students", x = "Outcome", y = "Number of students") +
+  theme_minimal()
+
+#Age at enrollment#
+ggplot(df, aes(x = age)) +
+  geom_histogram(binwidth = 2, color = "black", fill = "green") +
+  labs(title = "Age at Enrolment", x = "Age (years)", y = "Number of students") +
+  theme_minimal()
+df %>% count(cut_width(age, 5))
+
+
+
