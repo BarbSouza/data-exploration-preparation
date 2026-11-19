@@ -348,8 +348,7 @@ write.csv(df, "data_outliers.csv", row.names = FALSE)
 
 
 ######### Exploratory Data Analysis: The Student Journey ########
-#Finding out the Dropout, Enrolled and Graduate % in different circumstances
-#Outcomes are unbalanced (32/18/50%) so comparing using rates
+
 ##Questions##
 #1. Does dropout rate differ between male and female?
 #2. Which courses lose the most students, is there a gender difference?
@@ -358,6 +357,7 @@ write.csv(df, "data_outliers.csv", row.names = FALSE)
 #4. Does age of enrollment related to dropout?
 #5. How do 1st and 2nd semester grades relate, and do dropouts cluster at low grades?
 
+##Extra##
 # Is parents educational level related to dropout? (Showed little relation to dropout)
 
 # Does the Enrolled students are more similar to the Graduate or to the Dropouts?
@@ -368,6 +368,8 @@ ggplot(df, aes(x = target)) +
   labs(title = "Academic Outcome of Students", x = "Outcome", y = "Number of students") +
   theme_minimal()
 
+#Graduate 50% / Dropout 32% / Enrolled 18% -> unbalanced, so groups are compared with rates (%)
+
 #Age at enrollment#
 ggplot(df, aes(x = age)) +
   geom_histogram(binwidth = 2, color = "black", fill = "green") +
@@ -375,27 +377,7 @@ ggplot(df, aes(x = age)) +
   theme_minimal()
 df %>% count(cut_width(age, 5))
 
-##QUESTION 1##
-#Gender vs Outcome#
-gender_rates <- df %>%
-  group_by(gender) %>%
-  summarise(Dropout = round(mean(target == "Dropout") * 100, 1),
-            Enrolled = round(mean(target == "Enrolled") * 100, 1),
-            Graduate = round(mean(target == "Graduate") * 100, 1))
-gender_rates
-
-gender_long <- melt(as.data.frame(gender_rates),
-                    id.vars = "gender",
-                    variable.name = "outcome",
-                    value.name = "percent")
-
-gender_long$outcome <- factor(gender_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
-
-ggplot(gender_long, aes(x = gender, y = percent, fill = outcome)) +
-  geom_col() +
-  scale_fill_brewer(palette = "Set2") +
-  labs(title = "Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
-  theme_minimal()
+#Most students enroll at 18-20, long right tail up to 70 (mean 23 > median 20)
 
 ##EXTRA##
 #Parents education vs outcome#
@@ -422,6 +404,36 @@ ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
   labs(title = "Dropout Rate by Parents' Education",
        x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
   theme_minimal()
+
+#Dropout is 29-34% at every level for both parents, close to the 32% overall
+#-> little relation to dropout. Mode imputation of the "Unknown" parents slightly blurs the groups.
+
+##QUESTION 1##
+#Gender vs Outcome#
+gender_rates <- df %>%
+  group_by(gender) %>%
+  summarise(Dropout = round(mean(target == "Dropout") * 100, 1),
+            Enrolled = round(mean(target == "Enrolled") * 100, 1),
+            Graduate = round(mean(target == "Graduate") * 100, 1))
+gender_rates
+
+gender_long <- melt(as.data.frame(gender_rates),
+                    id.vars = "gender",
+                    variable.name = "outcome",
+                    value.name = "percent")
+
+gender_long$outcome <- factor(gender_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
+
+ggplot(gender_long, aes(x = gender, y = percent, fill = outcome)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
+  theme_minimal()
+
+#Men drop out almost twice as often as women (45% vs 25%) and graduate less (35% vs 58%).
+#Enrolled is similar in both (17-20%): gender shifts students between Dropout and Graduate.
+#Association, not cause: men may be concentrated in courses with higher dropout (checked in Q2).
+
 
 ##QUESTION 2##
 #Dropout rate per course and gender#
@@ -456,6 +468,10 @@ ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gend
   labs(title = "Dropout Rate by Course and Gender",
        x = "Course", y = "Dropout rate (%)", fill = "Gender") +
   theme_minimal()
+
+#Highest dropout course Informatics Engineering (66.7%), lowest Nursing (15.4%)
+#Biofuel Production Tech rate is unreliable because has only 12 students
+#Male still dropout more than female in every course except Informatics Engineering
 
 ##QUESTION 3##
 #tuition fees and scholarship vs outcome
@@ -507,6 +523,10 @@ p_scholarship <- ggplot(scholarship_long, aes(x = scholarship, y = percent, fill
 
 grid.arrange(p_fees, p_scholarship, ncol = 2)
 
+#students not up to date with fees drop out 87% vs 25% of cases and non scholarship holders drop out in 38% vs 12% of the cases.
+#Association: students might be leaving because of tuition.
+
+
 #Were scholarship holders already better students before university?
 #compare medians
 df %>%
@@ -524,6 +544,8 @@ df %>%
   group_by(cut_width(admission_grade, 20), scholarship) %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
 
+#Scholarship holders entered with the same median admission grade -> not merit based
+
 ##QUESTION 4##
 #age by outcome
 ggplot(df, aes(x = target, y = age)) +
@@ -533,6 +555,9 @@ ggplot(df, aes(x = target, y = age)) +
 df %>%
   group_by(target) %>%
   summarise(median_age = median(age), mean_age = round(mean(age), 1), n = n())
+
+#Dropouts are older (median 23, box 19-30) than graduates (median 19, box 18-21)
+#Most of the outliers (older students) are dropouts
 
 ##QUESTION 5##
 #1st vs 2nd Semester
@@ -554,6 +579,9 @@ approved_units <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = targe
 cor(df$s1_approved, df$s2_approved)
 
 grid.arrange(s1ands2_grades, approved_units, ncol = 2)
+
+#Most of the dropout sits at the bottom
+#There is a correlation of students grades in semester 1 and 2
 
 #UNUSUAL PATTERN - identical grades in both semesters
 same_grade <- filter(real_grades, s1_grade == s2_grade)
@@ -598,3 +626,9 @@ df %>% filter(s1_enrolled == 0) %>% count(course)
 #ENROLLED SUMMARY - averages per outcome 
 aggregate(cbind(age, admission_grade, s1_approved, s2_approved) ~ target,
           data = df, FUN = mean)
+
+#OVERALL: dropout is most strongly associated with money (fees: 87% vs 25%, scholarship: 12% vs 39%) and early academic results (units passed in year1),
+#Gender is also relevant: man drop out almost twice as often as woman (45% vs 25%). and the gap ramains within 15 of 17 courses.
+#Age matters too (dropouts older); family background matters little.
+
+
