@@ -504,6 +504,7 @@ p_scholarship <- ggplot(scholarship_long, aes(x = scholarship, y = percent, fill
        x = "Scholarship holder", y = "% of students", fill = "Outcome") +
   theme_minimal() +
   theme(legend.position = "bottom")
+
 grid.arrange(p_fees, p_scholarship, ncol = 2)
 
 #Were scholarship holders already better students before university?
@@ -527,11 +528,31 @@ df %>%
 #age by outcome
 ggplot(df, aes(x = target, y = age)) +
   geom_boxplot(fill = "lightblue", outlier.color = "orangered1", outlier.shape = 3) +
-  labs(title = "Age at Enrolment by Outcome", x = "Outcome", y = "Age (years)") +
+  labs(title = "Age at Enrollment by Outcome", x = "Outcome", y = "Age (years)") +
   theme_minimal()
 df %>%
   group_by(target) %>%
   summarise(median_age = median(age), mean_age = round(mean(age), 1), n = n())
 
 ##QUESTION 5##
+#1st vs 2nd Semester
+real_grades <- filter(df, no_grade_1st == 0 & no_grade_2nd == 0)
+s1ands2_grades <-ggplot(real_grades, aes(x = s1_grade, y = s2_grade, color = target)) +
+  geom_point(alpha = 0.4) +
+  labs(title = "Grades: 1st vs 2nd Semester (students with a grade)",
+       x = "1st semester grade", y = "2nd semester grade", color = "Outcome") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+cor(real_grades$s1_grade, real_grades$s2_grade)
+
+approved_grades <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = target)) +
+  geom_jitter(width = 0.3, alpha = 0.4) +
+  labs(title = "Units Passed: 1st vs 2nd Semester",
+       x = "Units approved - 1st semester", y = "Units approved - 2nd semester", color = "Outcome") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+cor(df$s1_approved, df$s2_approved)
+
+grid.arrange(s1ands2_grades, approved_grades, ncol = 2)
+
 
