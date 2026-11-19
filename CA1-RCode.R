@@ -505,5 +505,20 @@ p_scholarship <- ggplot(scholarship_long, aes(x = scholarship, y = percent, fill
   theme(legend.position = "bottom")
 grid.arrange(p_fees, p_scholarship, ncol = 2)
 
+#Were scholarship holders already better students before university?
+#compare medians
+df %>%
+  group_by(scholarship) %>%
+  summarise(median_admission = median(admission_grade),
+            median_prev_qual = median(prev_qual_grade),
+            n = n())
+#grade by scholarship
+ggplot(df, aes(x = scholarship, y = admission_grade)) +
+  geom_boxplot(fill = "lightgreen", outlier.color = "orangered1", outlier.shape = 3) +
+  labs(title = "Q3c. Admission Grade by Scholarship", x = "Scholarship holder", y = "Admission grade (0-200)") +
+  theme_minimal()
 
+df %>%
+  group_by(cut_width(admission_grade, 20), scholarship) %>%
+  summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
 
