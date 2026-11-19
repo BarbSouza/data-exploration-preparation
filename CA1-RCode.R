@@ -377,30 +377,30 @@ df %>% count(cut_width(age, 5))
 #Gender vs Outcome#
 gender_rates <- df %>%
   group_by(gender) %>%
-  summarise(Dropout  = round(mean(target == "Dropout") * 100, 1),
+  summarise(Dropout = round(mean(target == "Dropout") * 100, 1),
             Enrolled = round(mean(target == "Enrolled") * 100, 1),
             Graduate = round(mean(target == "Graduate") * 100, 1))
 gender_rates
 
 gender_long <- melt(as.data.frame(gender_rates),
-                    id.vars       = "gender",
+                    id.vars = "gender",
                     variable.name = "outcome",
-                    value.name    = "percent")
+                    value.name = "percent")
 
 gender_long$outcome <- factor(gender_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
 
 ggplot(gender_long, aes(x = gender, y = percent, fill = outcome)) +
   geom_col() +
   scale_fill_brewer(palette = "Set2") +
-  labs(title = "Q1. Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
+  labs(title = "Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
   theme_minimal()
 
 #Parents education vs outcome#
 parents <- melt(df[c("target", "mother_edu", "father_edu")],
-                id.vars       = "target",
-                measure.vars  = c("mother_edu", "father_edu"),
+                id.vars = "target",
+                measure.vars = c("mother_edu", "father_edu"),
                 variable.name = "parent",
-                value.name    = "edu_level")
+                value.name = "edu_level")
 head(parents)
 
 #labels
@@ -418,10 +418,35 @@ parent_rates
 ggplot(parent_rates, aes(x = edu_level, y = dropout, fill = parent)) +
   geom_col(position = "dodge") +
   scale_fill_brewer(palette = "Set2") +
-  labs(title = "Q2. Dropout Rate by Parents' Education",
+  labs(title = "Dropout Rate by Parents' Education",
        x = "Education level", y = "Dropout rate (%)", fill = "Parent") +
   theme_minimal()
 
 #Dropout rate per course and gender#
+#Dropout rate, % of men and size of each course
+course_rates <- df %>%
+  group_by(course) %>%
+  summarise(dropout = round(mean(target == "Dropout") * 100, 1), male = round(mean(gender == "Male") * 100, 1), n = n())
+course_rates <- as.data.frame(course_rates)
+course_rates[order(-course_rates$dropout), ]
 
+#Dropout rate per course
+ggplot(course_rates, aes(x = reorder(course, dropout), y = dropout)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Dropout Rate by Course", x = "Course", y = "Dropout rate (%)") +
+  theme_minimal()
 
+#Courses with more man dropout more
+ggplot(course_rates, aes(x = male, y = dropout)) +
+  geom_point(aes(size = n), color = "steelblue") +
+  geom_text(aes(label = course), size = 3, vjust = -1) +
+  labs(title = "Course Dropout Rate vs % of Men",
+       x = "% of men in the course", y = "Dropout rate (%)", size = "Students") +
+  theme_minimal()
+cor(course_rates$male, course_rates$dropout)
+
+gender_course <- df %>%
+  group_by(course, gender) %>%
+  summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
+as.data.frame(gender_course)
