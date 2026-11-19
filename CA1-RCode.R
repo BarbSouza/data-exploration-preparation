@@ -354,6 +354,7 @@ write.csv(df, "data_outliers.csv", row.names = FALSE)
 #1. Does dropout rate differ between male and female?
 #2. Which courses lose the most students, is there a gender difference?
 #3. Are tuition fee status and scholarships related to dropout?
+  #Where scholarship students already better before?
 #4. Does age of enrollment related to dropout?
 #5. How do 1st and 2nd semester grades relate, and do dropouts cluster at low grades?
 
@@ -515,10 +516,22 @@ df %>%
 #grade by scholarship
 ggplot(df, aes(x = scholarship, y = admission_grade)) +
   geom_boxplot(fill = "lightgreen", outlier.color = "orangered1", outlier.shape = 3) +
-  labs(title = "Q3c. Admission Grade by Scholarship", x = "Scholarship holder", y = "Admission grade (0-200)") +
+  labs(title = "Admission Grade by Scholarship", x = "Scholarship holder", y = "Admission grade (0-200)") +
   theme_minimal()
 
 df %>%
   group_by(cut_width(admission_grade, 20), scholarship) %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
+
+##QUESTION 4##
+#age by outcome
+ggplot(df, aes(x = target, y = age)) +
+  geom_boxplot(fill = "lightblue", outlier.color = "orangered1", outlier.shape = 3) +
+  labs(title = "Age at Enrolment by Outcome", x = "Outcome", y = "Age (years)") +
+  theme_minimal()
+df %>%
+  group_by(target) %>%
+  summarise(median_age = median(age), mean_age = round(mean(age), 1), n = n())
+
+##QUESTION 5##
 
