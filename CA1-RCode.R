@@ -372,5 +372,16 @@ ggplot(df, aes(x = age)) +
   theme_minimal()
 df %>% count(cut_width(age, 5))
 
-
+#Gender vs Outcome#
+ggplot(df, aes(x = gender, fill = target)) +
+  geom_bar(position = "dodge") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Q1. Outcome by Gender", x = "Gender", y = "Number of students") +
+  theme_minimal()
+df %>%
+  group_by(gender) %>%
+  summarise(dropout = round(mean(target == "Dropout") * 100, 1),
+            enrolled = round(mean(target == "Enrolled") * 100, 1),
+            graduate = round(mean(target == "Graduate") * 100, 1),
+            n = n())
 
