@@ -555,4 +555,20 @@ cor(df$s1_approved, df$s2_approved)
 
 grid.arrange(s1ands2_grades, approved_grades, ncol = 2)
 
+#checking patterns
+same_grade <- filter(real_grades, s1_grade == s2_grade)
+nrow(same_grade)
+same_grade %>% count(course)
 
+#Nursing students with identical grades
+nursing <- filter(real_grades, course == "Nursing")
+nrow(nursing)
+nrow(filter(nursing, s1_grade == s2_grade))
+
+#Recalculate correlation without Nursing
+no_nursing <- filter(real_grades, course != "Nursing")
+cor(no_nursing$s1_grade, no_nursing$s2_grade)
+
+#Unusual pattern 2: 363 of 703 Nursing students (52%) have identical grades in both semesters
+#(other courses: 1-13 students) -> likely an annual grade recorded twice, not real behaviour.
+#Without Nursing, r drops from 0.68 to 0.63 -> slightly inflated, but the relationship holds.
