@@ -231,7 +231,7 @@ df$course <- factor(df$course,
                                "Journalism & Communication", "Basic Education",
                                "Management (evening)"))
 
-#Parents qualification: 33 codes -> 3 levels (Basic < Saecondary < Higher)
+#Parents qualification: 33 codes -> 3 levels (Basic < Secondary < Higher)
 qual_codes  <- c(11, 19, 26, 29, 30, 35, 36, 37, 38,
                  1, 9, 10, 12, 13, 14, 18, 20, 22, 25, 27, 31, 33,
                  2, 3, 4, 5, 6, 39, 40, 41, 42, 43, 44)
