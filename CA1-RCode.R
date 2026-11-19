@@ -438,15 +438,20 @@ ggplot(course_rates, aes(x = reorder(course, dropout), y = dropout)) +
   theme_minimal()
 
 #Courses with more man dropout more
-ggplot(course_rates, aes(x = male, y = dropout)) +
-  geom_point(aes(size = n), color = "steelblue") +
-  geom_text(aes(label = course), size = 3, vjust = -1) +
-  labs(title = "Course Dropout Rate vs % of Men",
-       x = "% of men in the course", y = "Dropout rate (%)", size = "Students") +
-  theme_minimal()
 cor(course_rates$male, course_rates$dropout)
 
+#Dropout rate per course and gender
 gender_course <- df %>%
   group_by(course, gender) %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
 as.data.frame(gender_course)
+gender_course
+
+#Woman vs men in each course
+ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gender)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Dropout Rate by Course and Gender",
+       x = "Course", y = "Dropout rate (%)", fill = "Gender") +
+  theme_minimal()
