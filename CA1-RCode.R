@@ -55,7 +55,6 @@ str(df)
   #Binary (0/1)
     #Displaced
     #Educational.special.needs
-    #Educational.special.needs                     
     #Debtor                                         
     #Tuition.fees.up.to.date                        
     #Gender                                         
@@ -68,11 +67,12 @@ str(df)
     #Curricular.units.1st.sem..enrolled.            
     #Curricular.units.1st.sem..evaluations.         
     #Curricular.units.1st.sem..approved.    
-    #Curricular.units.1nd.sem..credited. 
+    #Curricular.units.1st.sem..credited. 
     #Curricular.units.1st.sem..without.evaluations. 
     #Curricular.units.2nd.sem..enrolled.            
     #Curricular.units.2nd.sem..evaluations.         
     #Curricular.units.2nd.sem..approved. 
+    #Curricular.units.2nd.sem..credited. 
     #Curricular.units.2nd.sem..without.evaluations
 
 
@@ -349,7 +349,7 @@ write.csv(df, "data_outliers.csv", row.names = FALSE)
 
 ######### Exploratory Data Analysis: The Student Journey ########
 #Finding out the Dropout, Enrolled and Graduate % in different circumstances
-#Outcomes are unbalanced (32/12/50%) so comparing using rates
+#Outcomes are unbalanced (32/18/50%) so comparing using rates
 ##Questions##
 #1. Does dropout rate differ between male and female?
 #2. Which courses lose the most students, is there a gender difference?
@@ -397,6 +397,7 @@ ggplot(gender_long, aes(x = gender, y = percent, fill = outcome)) +
   labs(title = "Outcome by Gender (%)", x = "Gender", y = "% of students", fill = "Outcome") +
   theme_minimal()
 
+##EXTRA##
 #Parents education vs outcome#
 parents <- melt(df[c("target", "mother_edu", "father_edu")],
                 id.vars = "target",
@@ -408,8 +409,6 @@ head(parents)
 #labels
 parents$edu_level <- factor(parents$edu_level, levels = c("Basic", "Secondary", "Higher"))
 parents$parent <- factor(parents$parent, levels = c("mother_edu", "father_edu"), labels = c("Mother", "Father"))
-
-#
 
 #Dropout rate per parent and level
 parent_rates <- parents %>%
@@ -440,17 +439,16 @@ ggplot(course_rates, aes(x = reorder(course, dropout), y = dropout)) +
   labs(title = "Dropout Rate by Course", x = "Course", y = "Dropout rate (%)") +
   theme_minimal()
 
-#Courses with more man dropout more
+#Courses with more men dropout more
 cor(course_rates$male, course_rates$dropout)
 
 #Dropout rate per course and gender
 gender_course <- df %>%
   group_by(course, gender) %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
-as.data.frame(gender_course)
-gender_course
+gender_course <- as.data.frame(gender_course)
 
-#Woman vs men in each course
+#Women vs men in each course
 ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gender)) +
   geom_col(position = "dodge") +
   coord_flip() +
@@ -474,6 +472,7 @@ fees_long <- melt(as.data.frame(fees_rates[c("fees_up_to_date", "Dropout", "Enro
                   id.vars = "fees_up_to_date",
                   variable.name = "outcome",
                   value.name = "percent")
+fees_long$outcome <- factor(fees_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
 
 p_fees <- ggplot(fees_long, aes(x = fees_up_to_date, y = percent, fill = outcome)) +
   geom_col() +
@@ -496,6 +495,7 @@ scholarship_long <- melt(as.data.frame(scholarship_rates[c("scholarship", "Dropo
                          id.vars = "scholarship",
                          variable.name = "outcome",
                          value.name = "percent")
+scholarship_long$outcome <- factor(scholarship_long$outcome, levels = c("Graduate", "Enrolled", "Dropout"))
 
 p_scholarship <- ggplot(scholarship_long, aes(x = scholarship, y = percent, fill = outcome)) +
   geom_col() +
@@ -545,7 +545,7 @@ s1ands2_grades <-ggplot(real_grades, aes(x = s1_grade, y = s2_grade, color = tar
   theme(legend.position = "bottom")
 cor(real_grades$s1_grade, real_grades$s2_grade)
 
-approved_grades <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = target)) +
+approved_units <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = target)) +
   geom_jitter(width = 0.3, alpha = 0.4) +
   labs(title = "Units Passed: 1st vs 2nd Semester",
        x = "Units approved - 1st semester", y = "Units approved - 2nd semester", color = "Outcome") +
@@ -553,9 +553,9 @@ approved_grades <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = targ
   theme(legend.position = "bottom")
 cor(df$s1_approved, df$s2_approved)
 
-grid.arrange(s1ands2_grades, approved_grades, ncol = 2)
+grid.arrange(s1ands2_grades, approved_units, ncol = 2)
 
-#checking patterns
+#UNUSUAL PATTERN - identical grades in both semesters
 same_grade <- filter(real_grades, s1_grade == s2_grade)
 nrow(same_grade)
 same_grade %>% count(course)
@@ -572,3 +572,29 @@ cor(no_nursing$s1_grade, no_nursing$s2_grade)
 #Unusual pattern 2: 363 of 703 Nursing students (52%) have identical grades in both semesters
 #(other courses: 1-13 students) -> likely an annual grade recorded twice, not real behaviour.
 #Without Nursing, r drops from 0.68 to 0.63 -> slightly inflated, but the relationship holds.
+
+##Co-variation Overview
+#Correlation heatmap
+heat_cols <- c("age", "prev_qual_grade", "admission_grade",
+               "s1_enrolled", "s1_evaluations", "s1_approved", "s1_grade",
+               "s2_enrolled", "s2_evaluations", "s2_approved", "s2_grade",
+               "unemployment", "inflation", "gdp")
+cor_mat <- cor(df[, heat_cols])
+cor_df <- melt(cor_mat)
+ggplot(cor_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = round(value, 1)), size = 2.5) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  labs(title = "Correlation Heatmap", x = "", y = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#UNUSUAL PATTERN - graduates who passed nothing in year 1
+unusual <- filter(df, no_grade_1st == 1 & no_grade_2nd == 1 & target == "Graduate")
+nrow(unusual)
+table(unusual$course)
+df %>% filter(s1_enrolled == 0) %>% count(course)
+
+#ENROLLED SUMMARY - averages per outcome 
+aggregate(cbind(age, admission_grade, s1_approved, s2_approved) ~ target,
+          data = df, FUN = mean)
