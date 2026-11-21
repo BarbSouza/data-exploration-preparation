@@ -628,7 +628,164 @@ aggregate(cbind(age, admission_grade, s1_approved, s2_approved) ~ target,
           data = df, FUN = mean)
 
 #OVERALL: dropout is most strongly associated with money (fees: 87% vs 25%, scholarship: 12% vs 39%) and early academic results (units passed in year1),
-#Gender is also relevant: man drop out almost twice as often as woman (45% vs 25%). and the gap ramains within 15 of 17 courses.
+#Gender is also relevant: man drop out almost twice as often as woman (45% vs 25%). and the gap remains within 15 of 17 courses.
 #Age matters too (dropouts older); family background matters little.
+
+##########Encoding###########
+
+#FLAG encoding for binary columns
+df$gender_male      <- ifelse(df$gender == "Male", 1, 0)
+df$daytime          <- ifelse(df$attendance == "Daytime", 1, 0)
+df$displaced_flag   <- ifelse(df$displaced == "Yes", 1, 0)
+df$debtor_flag      <- ifelse(df$debtor == "Yes", 1, 0)
+df$fees_ok_flag     <- ifelse(df$fees_up_to_date == "Yes", 1, 0)
+df$scholarship_flag <- ifelse(df$scholarship == "Yes", 1, 0)
+table(df$gender, df$gender_male) 
+
+#Label (ordinal) encoding
+df$mother_edu_level <- ifelse(df$mother_edu == "Basic", 1, ifelse(df$mother_edu == "Secondary", 2, 3))
+df$father_edu_level <- ifelse(df$father_edu == "Basic", 1, ifelse(df$father_edu == "Secondary", 2, 3))
+table(df$mother_edu, df$mother_edu_level)
+
+#Columns for PCA
+pca_df <- df[c("course", "marital_status",
+               "gender_male", "daytime", "displaced_flag", "debtor_flag",
+               "fees_ok_flag", "scholarship_flag",
+               "mother_edu_level", "father_edu_level",
+               "age_log", "prev_qual_grade", "admission_grade",
+               "s1_credited", "s1_enrolled", "s1_evaluations",
+               "s1_approved", "s1_grade", "s1_without_eval",
+               "s2_credited", "s2_enrolled", "s2_evaluations",
+               "s2_approved", "s2_grade", "s2_without_eval",
+               "no_grade_1st", "no_grade_2nd")]
+
+#One-HOT encoding for nominal columns
+pca_df <- dummy_cols(pca_df, select_columns = c("course", "marital_status"), remove_selected_columns = TRUE)
+names(pca_df)
+
+#Check
+str(pca_df)
+dim(pca_df)
+colSums(is.na(pca_df))
+
+#Before and After
+head(df[c("course", "gender", "mother_edu")], 5)
+head(pca_df[c("gender_male", "mother_edu_level", "course_Nursing", "course_Management")], 5)
+
+write.csv(pca_df, "data_encoded.csv", row.names = FALSE)
+
+
+###### Scaling ######
+
+pca_data <- pca_df
+
+#keep only columns with variation
+apply(pca_data, 2, sd) > 0
+pca_data <- pca_data[, apply(pca_data, 2, sd) > 0]
+dim(pca_data)
+
+#Min-max
+normalizeMinMax <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+data_minmax <- as.data.frame(apply(pca_data, 2, normalizeMinMax))
+
+#Z-score
+normalizeStandardized <- function(x) {
+  return ((x - mean(x)) / sd(x))
+}
+data_z <- as.data.frame(apply(pca_data, 2, normalizeStandardized))
+
+#Check
+round(apply(data_z, 2, mean), 3)
+round(apply(data_z, 2, sd), 3)
+
+#Before and After
+p1 <- ggplot(pca_data, aes(x = admission_grade)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black") +
+  labs(title = "Original")
+p2 <- ggplot(data_minmax, aes(x = admission_grade)) +
+  geom_histogram(bins = 30, fill = "green", color = "black") +
+  labs(title = "Min-Max (0 to 1)")
+p3 <- ggplot(data_z, aes(x = admission_grade)) +
+  geom_histogram(bins = 30, fill = "red", color = "black") +
+  labs(title = "Z-score")
+grid.arrange(p1, p2, p3, ncol = 3)
+
+write.csv(data_z, "data_scaled.csv", row.names = FALSE)
+
+
+######## PCA ########
+
+#Outcome used only to colour the plots
+groups <- as.factor(df$target)
+
+#PCA - all 45 encoded features
+res.pca <- prcomp(data_z, scale = TRUE)
+eig.val <- get_eigenvalue(res.pca)
+head(round(eig.val, 2), 15)
+sum(eig.val$eigenvalue > 1)
+fviz_eig(res.pca, addlabels = TRUE, main = "Scree Plot - All Encoded Features")
+#PC1 explains only 14.4% -> dummies spread the variance
+
+#PCA - 15 academic variables
+academic_cols <- c("prev_qual_grade", "admission_grade",
+                   "s1_credited", "s1_enrolled", "s1_evaluations",
+                   "s1_approved", "s1_grade", "s1_without_eval",
+                   "s2_credited", "s2_enrolled", "s2_evaluations",
+                   "s2_approved", "s2_grade", "s2_without_eval",
+                   "age_log")
+res.pca2 <- prcomp(data_z[academic_cols], scale = TRUE)
+summary(res.pca2)
+
+#Number of components to keep
+eig.val2 <- get_eigenvalue(res.pca2)
+round(eig.val2, 2)
+k <- sum(eig.val2$eigenvalue > 1)
+k
+round(eig.val2$cumulative.variance.percent[k], 1)
+fviz_eig(res.pca2, addlabels = TRUE, main = "Scree Plot - Academic Variables")
+#5 components keep 79.3% (8 for 90%)
+
+#Loadings
+round(res.pca2$rotation[, 1:3], 3) 
+
+#Contribution of variables to each component
+fviz_contrib(res.pca2, choice = "var", axes = 1)
+fviz_contrib(res.pca2, choice = "var", axes = 2)
+fviz_contrib(res.pca2, choice = "var", axes = 3)
+
+#Variables plot
+fviz_pca_var(res.pca2, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE, title = "PCA - Variables")
+
+#Individual coloured by outcome
+fviz_pca_ind(res.pca2, geom = "point", col.ind = groups,
+             palette = c("#FC4E07", "#E7B800", "#00AFBB"),
+             addEllipses = TRUE, ellipse.type = "confidence",
+             legend.title = "Outcome", title = "PCA - Students by Outcome")
+
+#Biplot
+fviz_pca_biplot(res.pca2, label = "var", col.var = "#2E9FDF", col.ind = "#696969",
+                repel = TRUE, title = "PCA - Biplot")
+
+#Avarage positioon of each outcome
+res.ind <- get_pca_ind(res.pca2)
+res.ind$coord %>%
+  as.data.frame() %>%
+  select(Dim.1, Dim.2) %>%
+  mutate(outcome = groups) %>%
+  group_by(outcome) %>%
+  summarise(Dim.1 = mean(Dim.1), Dim.2 = mean(Dim.2))
+#Enrolled: middle on PC1, close to Dropout on PC2
+
+#Save PCA scores
+pca_scores <- as.data.frame(res.pca2$x[, 1:k])
+pca_scores$target <- groups
+dim(pca_scores)
+write.csv(pca_scores, "data_pca_scores.csv", row.names = FALSE)
+
+
 
 
