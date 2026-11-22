@@ -267,10 +267,10 @@ str(df)
 #Before and after imputation
 p1 <- ggplot(df_raw, aes(x = Curricular.units.1st.sem..grade.)) +
   geom_histogram(binwidth = 0.5, fill = "blue", color = "black") +
-  labs(title = "1st-sem grade - original (0 = no grade)", x = "Grade (0-20)")
+  labs(title = "1st-semester grade - original (0 = no grade)", x = "Grade (0-20)")
 p2 <- ggplot(df, aes(x = s1_grade)) +
   geom_histogram(binwidth = 0.5, fill = "green", color = "black") +
-  labs(title = "1st-sem grade - after median imputation", x = "Grade (0-20)")
+  labs(title = "1st-semester grade - after median imputation", x = "Grade (0-20)")
 grid.arrange(p1, p2, ncol = 2)
 
 #Save
@@ -460,6 +460,18 @@ gender_course <- df %>%
   summarise(dropout = round(mean(target == "Dropout") * 100, 1), n = n())
 gender_course <- as.data.frame(gender_course)
 
+#Order courses by their OVERALL dropout rate (not the average of the two gender rates)
+gender_course$course <- factor(gender_course$course,
+                               levels = course_rates$course[order(course_rates$dropout)])
+
+ggplot(gender_course, aes(x = course, y = dropout, fill = gender)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Dropout Rate by Course and Gender",
+       x = "Course (ordered by overall dropout rate)", y = "Dropout rate (%)", fill = "Gender") +
+  theme_minimal()
+
 #Women vs men in each course
 ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gender)) +
   geom_col(position = "dodge") +
@@ -469,7 +481,7 @@ ggplot(gender_course, aes(x = reorder(course, dropout), y = dropout, fill = gend
        x = "Course", y = "Dropout rate (%)", fill = "Gender") +
   theme_minimal()
 
-#Highest dropout course Informatics Engineering (66.7%), lowest Nursing (15.4%)
+#Highest dropout course Biofuel  (66.7%), lowest Nursing (15.4%)
 #Biofuel Production Tech rate is unreliable because has only 12 students
 #Male still dropout more than female in every course except Informatics Engineering
 
@@ -572,8 +584,9 @@ cor(real_grades$s1_grade, real_grades$s2_grade)
 
 approved_units <- ggplot(df, aes(x = s1_approved, y = s2_approved, color = target)) +
   geom_jitter(width = 0.3, alpha = 0.4) +
-  labs(title = "Units Passed: 1st vs 2nd Semester",
-       x = "Units approved - 1st semester", y = "Units approved - 2nd semester", color = "Outcome") +
+  labs(title = "Modules Passed per Student: 1st vs 2nd Semester",
+       x = "Modules passed - 1st semester", y = "Modules passed - 2nd semester",
+       color = "Final outcome") +
   theme_minimal() +
   theme(legend.position = "bottom")
 cor(df$s1_approved, df$s2_approved)
@@ -597,8 +610,8 @@ nrow(filter(nursing, s1_grade == s2_grade))
 no_nursing <- filter(real_grades, course != "Nursing")
 cor(no_nursing$s1_grade, no_nursing$s2_grade)
 
-#Unusual pattern 2: 363 of 703 Nursing students (52%) have identical grades in both semesters
-#(other courses: 1-13 students) -> likely an annual grade recorded twice, not real behaviour.
+#Unusual pattern: 363 of 703 Nursing students (52%) have identical grades in both semesters
+#(other courses: 1-13 students) -> likely an annual grade recorded twice, not real behavior.
 #Without Nursing, r drops from 0.68 to 0.63 -> slightly inflated, but the relationship holds.
 
 ##Co-variation Overview
@@ -622,6 +635,7 @@ unusual <- filter(df, no_grade_1st == 1 & no_grade_2nd == 1 & target == "Graduat
 nrow(unusual)
 table(unusual$course)
 df %>% filter(s1_enrolled == 0) %>% count(course)
+#Animation& Multimedia: all 180 students with 0 units enrolled in yerar 1, including 75 graduates. Likely not recorded.
 
 #ENROLLED SUMMARY - averages per outcome 
 aggregate(cbind(age, admission_grade, s1_approved, s2_approved) ~ target,
@@ -760,7 +774,7 @@ fviz_pca_var(res.pca2, col.var = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE, title = "PCA - Variables")
 
-#Individual coloured by outcome
+#Individual colored by outcome
 fviz_pca_ind(res.pca2, geom = "point", col.ind = groups,
              palette = c("#FC4E07", "#E7B800", "#00AFBB"),
              addEllipses = TRUE, ellipse.type = "confidence",
